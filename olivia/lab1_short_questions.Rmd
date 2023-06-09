@@ -1,0 +1,299 @@
+---
+title: "Lab 1, Short Questions"
+geometry: margin=1in
+output:
+  pdf_document:
+    toc: yes
+    number_sections: yes
+fontsize: 11pt
+---
+
+```{r load packages for homework 2, message=FALSE}
+library(tidyverse)
+library(car)
+library(nnet)
+library(patchwork)
+library(GGally)
+library(caret)
+library(gridExtra)
+```
+
+# Strategic Placement of Products in Grocery Stores (5 points)
+
+These questions are taken from Question 12 of chapter 3 of the textbook(Bilder and Loughin’s “Analysis of Categorical Data with R.
+
+> *In order to maximize sales, items within grocery stores are strategically placed to draw customer attention. This exercise examines one type of item—breakfast cereal. Typically, in large grocery stores, boxes of cereal are placed on sets of shelves located on one side of the aisle. By placing particular boxes of cereals on specific shelves, grocery stores may better attract customers to them. To investigate this further, a random sample of size 10 was taken from each of four shelves at a Dillons grocery store in Manhattan, KS. These data are given in the *cereal_dillons.csv *file. The response variable is the shelf number, which is numbered from bottom (1) to top (4), and the explanatory variables are the sugar, fat, and sodium content of the cereals.*
+
+```{r read cereal data, message=FALSE}
+cereal <- read_csv('../data/cereal_dillons.csv')
+```
+
+
+## Recode Data 
+(1 point) The explanatory variables need to be reformatted before proceeding further (sample code is provided in the textbook). First, divide each explanatory variable by its serving size to account for the different serving sizes among the cereals. Second, re scale each variable to be within 0 and 1. Construct side-by-side box plots with dot plots overlaid for each of the explanatory variables. Also, construct a parallel coordinates plot for the explanatory variables and the shelf number. Discuss whether possible content differences exist among the shelves.
+
+```{r recode data}
+
+stand01 <- function(x) { (x-min(x)) / (max(x)-min(x)) }
+cereal2<- data.frame(shelf = cereal$Shelf,
+                     id = cereal$ID,
+                     sugar = stand01(x = cereal$sugar_g/cereal$size_g),
+                     fat = stand01(x = cereal$fat_g/cereal$size_g),
+                     sodium = stand01(x = cereal$sodium_mg/(cereal$size_g*1000)))
+
+```
+
+```{r boxplots}
+
+boxplot(formula = sugar ~ shelf, data = cereal2, ylab = "Sugar", xlab = "Shelf", pars = list(outpch=NA))
+stripchart(x = cereal2$sugar ~ cereal2$shelf, lwd = 2, col = "red", method = "jitter", vertical = TRUE, pch = 1, add = TRUE)
+
+boxplot(formula = fat ~ shelf, data = cereal2, ylab = "Fat", xlab = "Shelf", pars = list(outpch=NA))
+stripchart(x = cereal2$fat ~ cereal2$shelf, lwd = 2, col = "red", method = "jitter", vertical = TRUE, pch = 1, add = TRUE)
+
+boxplot(formula = sodium ~ shelf, data = cereal2, ylab = "Sodium", xlab = "Shelf", pars = list(outpch=NA))
+stripchart(x = cereal2$sodium ~ cereal2$shelf, lwd = 2, col = "red", method = "jitter", vertical = TRUE, pch = 1, add = TRUE)
+
+
+```
+
+> The second shelf from the bottom generally has much higher suger contents. The second shelf is great real-estate for products, especially ones marketed towards children who are generally shorter than adults. I think this placement is used to get kids to ask their parents for more sugary (expensive) cereal. Cereals with higher fat content are also on shelf two, but the difference is smaller than what we see with sugar. Both fat and sodium are less extreme between shelves.
+
+```{r parallel coordiantes plot}
+cereal3<- data.frame(shelf = factor(cereal$Shelf),
+                     id = cereal$ID,
+                     sugar = stand01(x = cereal$sugar_g/cereal$size_g),
+                     fat = stand01(x = cereal$fat_g/cereal$size_g),
+                     sodium = stand01(x = cereal$sodium_mg/(cereal$size_g*1000)))
+
+
+ggparcoord(cereal3,
+    columns = 2:5, groupColumn = 1,
+    scale="uniminmax",
+    order = "anyClass",
+    showPoints = TRUE, 
+    title = "Parallel Coordinate Plot for Cereal data",
+    alphaLines = 0.3
+    ) 
+
+```
+
+> Similar to what we saw in the box plots, there seems to be more high-sugar content cereals on the 2nd shelf.
+
+> Fill in: Do content differences exist between the shelves?'
+
+## Evaluate Ordinal vs. Categorical 
+(1 point) The response has values of $1, 2, 3,$ and $4$. Explain under what setting would it be desirable to take into account ordinality, and whether you think that this setting occurs here. Then estimate a suitable multinomial regression model with linear forms of the sugar, fat, and sodium variables. Perform LRTs to examine the importance of each explanatory variable. Show that there are no significant interactions among the explanatory variables (including an interaction among all three variables).
+
+> In this situation, I don't know if ordering this data would make sense. It would probably be better for a brand to have their cereal on the 2nd or 3rd shelves to be in eyeline of most people. But there isn't a cereal ranking based on what shelf they are on, so in this case the response variable is more nominal than ordinal. 
+
+```{r multinomial logit regressions}
+model_cereal_shelves_linear    <- nnet::multinom(shelf ~ sugar + fat + sodium, data = cereal2)
+model_cereal_shelves_quadratic <- nnet::multinom(shelf ~ sugar + fat + sodium +
+                                             sugar:fat + sugar:sodium + sodium:fat + sugar:sodium:fat, data = cereal2, maxit = 10000)
+
+summary(model_cereal_shelves_linear)
+summary(model_cereal_shelves_quadratic)
+```
+
+```{r likelihood ratio tests: main effects}
+lrt_cereal_main_effects <- Anova(model_cereal_shelves_linear)
+lrt_cereal_main_effects
+```
+
+```{r likelihood ratio tests: interaction effects} 
+lrt_cereal_quadratic_effects <- Anova(model_cereal_shelves_quadratic)
+lrt_cereal_quadratic_effects
+```
+
+> The interaction terms do not show any significance.
+
+## Where do you think Apple Jacks will be placed? 
+(1 point) Kellogg’s Apple Jacks (http://www.applejacks.com) is a cereal marketed toward children. For a serving size of $28$ grams, its sugar content is $12$ grams, fat content is $0.5$ grams, and sodium content is $130$ milligrams. Estimate the shelf probabilities for Apple Jacks.
+
+> stand01 <- function(x) { (x-min(x)) / (max(x)-min(x)) }
+
+```{r predictions for apple jacks}
+stand02 <- function(x) { (12 - min(x)) / (max(x) - min(x))}
+stand03 <- function(x) { (0.5 - min(x)) / (max(x) - min(x))}
+stand04 <- function(x) { (130 - min(x)) / (1000*(max(x) - min(x))) }
+
+test.data <- data.frame(
+  sugar = stand02(cereal$sugar_g/28),
+  fat = stand03(cereal$fat_g/28),
+  sodium = stand04(cereal$sodium_mg/28)
+)
+
+aj_shelf_probs <- predict(model_cereal_shelves_linear, newdata = test.data)
+aj_shelf_probs
+
+```
+
+> My model placed apple jacks on the 2nd shelf, which is promising because apple jacks are very sugary.
+
+## Figure 3.3 
+(1 point) Construct a plot similar to Figure 3.3 where the estimated probability for a shelf is on the *y-axis* and the sugar content is on the *x-axis*. Use the mean overall fat and sodium content as the corresponding variable values in the model. Interpret the plot with respect to sugar content.
+
+```{r create figure 3.3}
+
+mod.fit.nom.sugar<-multinom(formula = shelf ~ sugar, data = cereal2)
+summary(mod.fit.nom.sugar)
+beta.hat<-coefficients(mod.fit.nom.sugar)
+beta.hat
+
+shelf_vs_sugar_plot1 <- {
+  curve(expr = 1/(1 + exp(beta.hat[1,1] + beta.hat[1,2]*x) + exp(beta.hat[2,1] + beta.hat[2,2]*x)), ylab = expression(hat(pi)), xlab = "Sugar",
+xlim = c(min(cereal2$sugar), max(cereal2$sugar)), col = "black", lty = "solid", lwd = 2, n = 1000, type = "n")
+    # Plot each pi_j
+curve(expr = 1/(1 + exp(beta.hat[1,1] + beta.hat[1,2]*x) + exp(beta.hat[2,1] + beta.hat[2,2]*x)),
+      col = "black", lty = "solid", lwd = 2, n = 1000, add = TRUE,
+      xlim = c(min(cereal2$sugar[cereal2$shelf == "2"]), max(cereal2$sugar[cereal2$shelf == "2"])))  # shelf2
+curve(expr = exp(beta.hat[1,1] + beta.hat[1,2]*x)/(1 + exp(beta.hat[1,1] + beta.hat[1,2]*x) + exp(beta.hat[2,1] + beta.hat[2,2]*x)),
+      col = "black", lty = "dotdash", lwd = 2, n = 1000, add = TRUE,
+      xlim = c(min(cereal2$sugar[cereal2$shelf == "3"]), max(cereal2$sugar[cereal2$shelf == "3"])))  # shelf3
+    curve(expr = exp(beta.hat[2,1] + beta.hat[2,2]*x)/(1 + exp(beta.hat[1,1] + beta.hat[1,2]*x) + exp(beta.hat[2,1] + beta.hat[2,2]*x)),
+      col = "black", lty = "longdash", lwd = 2, n = 1000, add = TRUE,
+      xlim = c(min(cereal2$sugar[cereal2$shelf == "4"]), max(cereal2$sugar[cereal2$shelf == "4"])))  # shelf4
+    legend("topright", legend=c("Shelf 2", "Shelf 3", "Shelf 4"), lty=c("solid","longdash","dotdash"),
+      col=c("black","black","black"), bty="n", lwd = c(2,2,2), seg.len = 4)
+    # dev.off()  # Create plot for book
+
+predict.data<-data.frame(class = "hrw", sugar = c(mean(cereal2$sugar), mean(cereal2$sugar)), fat = mean(cereal2$fat),
+  sodium = mean(cereal2$sodium))
+pi.hat<-predict(object = mod.fit.nom.sugar, newdata = predict.data, type = "probs")
+head(pi.hat)
+pi.hat[,1]}
+
+shelf_vs_sugar_plot2 <- {    
+  curve(expr = predict(object = mod.fit.nom.sugar, newdata = data.frame(class = "hrw", sugar = x, mean(cereal2$sugar), fat = mean(cereal2$fat)), sodium = mean(cereal2$sodium), type = "probs")[,1], ylab = expression(hat(pi)), xlab = "Sugar",
+      xlim = c(min(cereal2$sugar), max(cereal2$sugar)), col = "black", lty = "solid", lwd = 2, n = 1000,
+      panel.first = grid(col = "gray", lty = "dotted"))
+    curve(expr = predict(object = mod.fit.nom.sugar, newdata = data.frame(class = "hrw", sugar = x, mean(cereal2$sugar), fat = mean(cereal2$fat)), sodium = mean(cereal2$sodium), type = "probs")[,2], ylab = expression(hat(pi)), xlab = "Sugar",
+      xlim = c(min(cereal2$sugar), max(cereal2$sugar)), col = "green", lty = "dotdash", lwd = 2, n = 1000,
+      add = TRUE, panel.first = grid(col = "gray", lty = "dotted"))
+    curve(expr = predict(object = mod.fit.nom.sugar, newdata = data.frame(class = "hrw", sugar = x, mean(cereal2$sugar), fat = mean(cereal2$fat)), sodium = mean(cereal2$sodium), type = "probs")[,3], ylab = expression(hat(pi)), xlab = "Sugar",
+      xlim = c(min(cereal2$sugar), max(cereal2$sugar)), col = "red", lty = "longdash", lwd = 2, n = 1000,
+      add = TRUE, panel.first = grid(col = "gray", lty = "dotted"))
+legend("topright", legend=c("Healthy", "Sprout", "Scab"), lty=c("solid","dotdash","longdash"), col=c("black","red","green"), bty="n", lwd = c(2,2,2))}
+
+shelf_vs_sugar_plot2
+```
+
+> 'Fill this in: What message does your plot give?'
+
+## Odds ratios 
+(1 point) Estimate odds ratios and calculate corresponding confidence intervals for each explanatory variable. Relate your interpretations back to the plots constructed for this exercise. 
+
+```{r produce odds ratios}
+odds_ratios <- exp(coefficients(model_cereal_shelves_linear))
+
+conf.int.cereal <- confint(model_cereal_shelves_linear, level = .95)
+
+odds_ratios
+conf.int.cereal
+```
+
+> 'Fill this in: What do you learn about each of these variables?' 
+
+
+# Alcohol, self-esteem and negative relationship interactions (5 points)
+
+Read the example **'Alcohol Consumption'** in chapter 4.2.2 of the textbook(Bilder and Loughin’s “Analysis of Categorical Data with R). This is based on a study in which moderate-to-heavy drinkers (defined as at least 12 alcoholic drinks/week for women, 15 for men) were recruited to keep a daily record of each drink that they consumed over a 30-day study period. Participants also completed a variety of rating scales covering daily events in their lives and items related to self-esteem. The data are given in the *DeHartSimplified.csv *data set. Questions 24-26 of chapter 3 of the textbook also relate to this data set and give definitions of its variables: the number of drinks consumed (`numall`), positive romantic-relationship events (`prel`), negative romantic-relationship events (`nrel`), age (`age`), trait (long-term) self-esteem (`rosn`), state (short-term) self-esteem (`state`).
+
+The researchers stated the following hypothesis:
+
+> *We hypothesized that negative interactions with romantic partners would be associated with alcohol consumption (and an increased desire to drink). We predicted that people with low trait self-esteem would drink more on days they experienced more negative relationship interactions compared with days during which they experienced fewer negative relationship interactions. The relation between drinking and negative relationship interactions should not be evident for individuals with high trait self-esteem.*
+
+```{r read drinking data, message=FALSE}
+drinks <- read_csv('../data/DeHartSimplified.csv')
+unique(drinks$dayweek)
+```
+
+## EDA 
+(2 points) Conduct a thorough EDA of the data set, giving special attention to the relationships relevant to the researchers' hypotheses. Address the reasons for limiting the study to observations from only one day.
+
+```{r drinking EDA}
+# Hypothesis: negative interactions increase with alcohol consumption. People with low self esteem drink more on days they experience negative interactions. Drinking and negaive relationship events not happening for high self esteem. 
+
+#summary(drinks)
+
+drinks2 <- data.frame(
+  id = drinks$id,
+  dayweek = drinks$dayweek,
+  nrel = drinks$negevent,
+  nrel_per_drink = drinks$negevent/(drinks$numall),
+  prel_per_drink = drinks$posevent/(drinks$numall),
+  numall = drinks$numall,
+  esteem = drinks$rosn,
+  age = drinks$age
+)
+
+drinks2 <- filter(drinks2, dayweek == 6)
+
+drinks3 <- data.frame(
+  id = drinks2$id,
+  numall = drinks2$numall,
+  nrel = drinks2$nrel,
+  prel = drinks2$prel
+)
+
+```
+```{r}
+p1 <- drinks2 %>% 
+  ggplot(aes(x = nrel_per_drink)) +
+  geom_density(aes(y = ..density..), alpha = 0.2) +
+  ggtitle("Distribution of Negative events per drink") + 
+  theme(plot.title = element_text(lineheight=1, face="bold")) +
+  xlab("Count") +
+  ylab("Density")
+
+p2 <- drinks2 %>% 
+  ggplot(aes(x = prel_per_drink)) +
+  geom_density(aes(y = ..density..), alpha = 0.2) +
+  ggtitle("Distribution of Positive events per drink") + 
+  theme(plot.title = element_text(lineheight=1, face="bold")) +
+  xlab("Count") +
+  ylab("Density")
+
+p3 <- drinks2 %>% 
+  ggplot(aes(x = numall)) +
+  geom_density(aes(y = ..density..), alpha = 0.2) +
+  ggtitle("Distribution of Drink count") + 
+  theme(plot.title = element_text(lineheight=1, face="bold")) +
+  xlab("Count") +
+  ylab("Density")
+
+p4 <- drinks2 %>% 
+  ggplot(aes(x = esteem)) +
+  geom_density(aes(y = ..density..), alpha = 0.2) +
+  ggtitle("Distribution of Self Esteem") + 
+  theme(plot.title = element_text(lineheight=1, face="bold")) +
+  xlab("Count") +
+  ylab("Density")
+
+grid.arrange(p1, p2,p3,p4, nrow = 2, ncol = 2)
+
+```
+> Looks like there are more negative events per drink than positive events per drink. 
+
+## Hypothesis One 
+(2 points) The researchers hypothesize that negative interactions with romantic partners would be associated with alcohol consumption and an increased desire to drink. Using appropriate models, evaluate the evidence that negative relationship interactions are associated with higher alcohol consumption and an increased desire to drink. 
+
+```{r}
+alc.mod.pois <- glm(numall ~ nrel , data = drinks2, family=poisson(link = "log"))
+summary(alc.mod.pois)
+```
+
+
+> This linear model shows that negative events decrease as the number of drinks increase. Or put another way, if a negative event increases by 1, the number of drinks decreases.
+
+## Hypothesis Two
+(1 point) The researchers hypothesize that the relation between drinking and negative relationship interactions should not be evident for individuals with high trait self-esteem. Conduct an analysis to address this hypothesis.
+
+```{r}
+alc.mod.pois2 <- glm(numall ~ esteem:nrel, data = drinks2, family=poisson())
+summary(alc.mod.pois2)
+
+```
+
+> 'Fill this in: What do you learn?' 
