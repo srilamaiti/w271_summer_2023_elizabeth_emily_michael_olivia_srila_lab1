@@ -160,18 +160,14 @@ $$
 
 ```{r, model 2}
 model_2 <- glm(formula = O.ring / Number ~ Temp, 
-               data = df,
-               family = binomial(link = logit), 
-               weights = Number)
+               data = df, family = binomial(link = logit), weights = Number)
 summary(model_2)
 cbind(Estimate = coef(model_2), confint(model_2))
 Anova(model_2, test = 'LR')
 ```
-
 In our second model, we just used temperature as the feature to predict the
 probability of o-ring failure and it still appears to be statistically significant 
 feature in predicting the probability of o-ring failure.
-
 Dalal, Fowlkes, and Hoadley (1989) chose to remove *Pressure* from the model 
 for the weak effect of it, but we also have limited data for 50 and 100 psi. 
 And the interaction between *Temp* and *Pressure* was not taken into account by 
@@ -192,9 +188,7 @@ $$
 
 ```{r, model 3}
 model_3 <- glm(formula = O.ring / Number ~ Temp + I(Temp ^ 2), 
-               data = df,
-               family = binomial(link = logit), 
-               weights = Number)
+               data = df, family = binomial(link = logit), weights = Number)
 summary(model_3)
 cbind(Estimate = coef(model_3), confint(model_3))
 Anova(model_3, test = 'LR')
@@ -214,12 +208,8 @@ logit \left( \pi_i \right)  = \beta_0 + \beta_1 t_i + \beta_2 p_i + \beta_4 t_i:
 $$
 
 ```{r, model 4}
-model_4 <- glm(formula = O.ring / Number ~ Temp + 
-                                           Pressure + 
-                                           Temp:Pressure, 
-               data = df,
-               family = binomial(link = logit), 
-               weights = Number)
+model_4 <- glm(formula = O.ring / Number ~ Temp + Pressure + Temp:Pressure, 
+               data = df, family = binomial(link = logit), weights = Number)
 summary(model_4)
 cbind(Estimate = coef(model_4), confint(model_4))
 Anova(model_4, test = 'LR')
@@ -387,26 +377,40 @@ summary(model.linear)
 
 par(mfrow=c(2,2))
 plot(model.linear)
+hist(model.linear$residuals)
+print(shapiro.test(sample(model.linear$residuals, size = 5000, replace = TRUE)))
+jarque.bera.test(model.linear$residuals)
 ```
-
-According to the linear model, the Temperature is statistically significant and 
-negatively related to the number of O-ring failures for a given flight. 
-For every 1-degree Fahrenheit increase, the number of O-ring failures decreases 
-by `r model.linear$coefficients[2]`.
-
-The residuals vs fitted plot displays non-linear relationship, which can not be 
-explained by the linera model and contributed in the residuals. 
-In the Q-Q plot, the residuals are supposed to follow a straight line showing 
-that the data is normally distributed, but it deviates from that pattern 
+The residuals vs fitted plot displays non-linear relationship, which can not be explained by the linera model and contributed in the residuals. 
+In the Q-Q plot, the residuals are supposed to follow a straight line showing that the data is normally distributed, but it deviates from that pattern 
 with a curve, which might be the result of skewness of data. 
-The scale-location plot displays if there is an equal variance (homoscedasticity), 
-we see that in our case, the residuals are not randomly distributed, and that's 
-why the smooth red line is not horizontal. 
-The Residual vs Leverage plot shows us that if there are influential observations. 
-All the observations are within Cook's distance lines, with an outlier 
-observation data point 14 which is at the borderline. We can conclude that it 
-does not show any influential cases that can alter the slope coefficient 
-significantly if removed. 
+The scale-location plot displays if there is an equal variance (homoscedasticity), we see that in our case, the residuals are not randomly distributed, and that's why the smooth red line is not horizontal. 
+The Residual vs Leverage plot shows us that if there are influential observations. All the observations are within Cook's distance lines, with an outlier observation data point 14 which is at the borderline. We can conclude that it does not show any influential cases that can alter the slope coefficient significantly if removed.  
+
+*Linear regression model assumptions:*  
+
+*a. IID*
+   
+   For our analysis, we used Challenger dataset and we used the entire population to asses the Challenger disaster on January 28, 1986, and it satisfies the identically distributed requirement. We do not have any evidence that one particular flight record is related to other flight record, thus independent.
+
+*b. No perfect colinearity*
+
+   Our model contains only one explanatory variable, so we satisfy the condition.
+
+*c. Linear Conditional Expectations*
+   
+   Based on the given data set, and plot for fitted vs residual, we do not see a linear realtionship. This assumption is not satisfied.
+
+*d. Homoscadasticity*
+
+   Homoscadasticity assumption is to have constant residual variance across the range of explanatory variables. The occular test shows that this assumption is not satisfied. 
+
+*e. Normally Distributed Errors*
+
+   The relationship between explanatory and the mean of outcome variable is linear. Based on the qqplot, it’s obvious that the errors are not normally distributed: we observe that the tail is significantly thinner than a normal distribution. Both Jarque-Bera test and Shapiro-Wilk test denotes that the distribution on the residuals distribution in question is significantly different from a normal distribution beacsue of the prsence of outliers as seen the residual vs fitted plot.
+
+We see that the linear regression assumptions are not satisfied and prediction can be out of bound, that is less than 0 or above 6, which is invalid. Using logistic regression, we do not need to assume a linear relationship between the explanatory variable and response variable, normally distributed residuals and residuals to have constant variance. As a result, binary logistic regression will be a better choice than linear regression.
+
 
 # Conclusions (10 points)
 
