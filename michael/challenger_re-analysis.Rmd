@@ -1,0 +1,138 @@
+---
+title: "W271 Group Lab 1"
+subtitle: "Investigating the 1986 Space Shuttle Challenger Accident"
+author: "Michael Denton, Srila Maiti, Olivia Pratt, Emily Robles, Elizabeth Willard"
+output: bookdown::pdf_document2
+fontsize: 11pt
+geometry: margin=1in
+---
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(psych)
+library(knitr)
+library(stargazer)
+```
+
+
+\newpage
+
+```{=tex}
+\begin{abstract} 
+This report will, indeed, be abstract. No, instead, describe your goals your approach, and what you learn.
+\end{abstract}
+```
+# Introduction
+
+## Research question
+
+\newpage
+# Data (20 points)
+
+## Description
+
+The data-set for analyzing the risk of O-ring failure in the Challenger Space Shuttle flight consists of twenty-three (23) out of the twenty-four (24) prior launches (one launch data is not available because the motors were lost at sea). The flight number increases by increment of one and corresponds to the incremental number of the flight (increases over date-time). 
+
+In addition to the Flight number, variables for launch temperature (**Temperature (°F)**), leak test pressure (**Pressure (psi)**), and O-ring failure mechanism (**O-Ring**) are recorded. In the O-ring failure mechanism, a value of 1 indicates erosion while a value of 2 indicates blow-by. As was the case in (Siddhartha, 1989), because only one flight (Flight Number 14) experienced secondary O-ring distress, only primary O-ring distress is considered in the analysis. The full data set accompanied with comments on the nature of the O ring failure mechanisms is presented in **Table 1**.
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+
+df <- read.csv('~/271/summer_23_central/Labs/Lab_1/data/raw/challenger.csv')
+
+# Add some other columns
+df$Mechanism <- ifelse(df$O.ring==1,"Erosion",ifelse(df$O.ring==2,"Blowby",""))
+df$Comment <- ifelse(df$Flight==14, "Secondary O-ring Distress Noted", "")
+
+#head(df)
+#describe(df)
+
+```
+
+```{r table1, echo=FALSE, warning=FALSE, message=FALSE, results='asis'}
+cols <- c("Flight","Temp","Pressure","O.ring","Mechanism","Comment")
+
+stargazer(df[cols],type='latex', summary=FALSE, rownames=FALSE, 
+          title='Twenty Three (23) Measured Flights Prior to Challenger Disaster',
+          column.labels = c("Flight Number", "Temperature (°F)", "Pressure (psi)", "Primary O-Ring Failure Mechanism","Additional Comments"), 
+          header=FALSE)
+
+```
+
+## Key Features
+
+Evident in **Table 1** are some peculiarities corresponding to the features available in the data set. The first is that, over time, the leak test pressure changes. Dalal et al. explain that this was due to finding that the putty by itself could sustain 50 psi, so the leak test was increased to 100, and then to 200 psi to properly test for O ring capability. It's also noted, however, that this increased leak pressure may have contributed to blow holes, which can lead to erosion in the putty. The other major finding is the temperatures that were experienced leading up to the fatal Challenger flight, which was scheduled to launch with a temperature hovering around freezing (31 °F). As seen in **Table 2** explicitly, the minimum temperature experienced prior to the launch failure was 53°F. It's also seen in **Table 1** that this particular launch corresponded to the single example of secondary O ring distress and corresponded with primary O ring blow by. The presence of secondary O-ring failure is critical because it shows that this condition could lead to failure in both O rings and thus penetration of the engine gases.
+
+
+```{r table2, echo=FALSE, warning=FALSE, message=FALSE, results='asis'}
+cols <- c("Flight","Temp","Pressure","O.ring")
+
+stargazer(df[cols], type='latex', summary=TRUE, header=FALSE,
+          title="Baseline Statistics of Prior Flights to Challenger Disaster")
+
+```
+
+The temperature effect alluded to in the data set is confirmed in **Figure 1**, which is a panel figure comparing the features and their reported Pearson correlation coefficients. It's shown that the correlation between the the temperature component and the O-ring failures is -0.51, meaning that lower temperatures were considered to result in higher O-ring failures. Also note the correlation between *Pressure* and *Flight*, which is easily explained by the change in procedure over time. To a lessor degree also exists a correlation between *Pressure* and *O ring* which may indicate a potential pressure effect to explore. This is also supported by the theory discussed above that high leak test pressure can lead to putty erosion.
+
+```{r pairsfig, fig.align="center", fig.width=8, fig.height=4, echo=FALSE, warning=FALSE, message=FALSE, fig.cap='Panel Plot of Flight Variables with Pearson Correlation'}
+cols <- c("Flight","Temp","Pressure","O.ring")
+
+pairs.panels(
+  df[cols], 
+  method = "pearson", # correlation method
+  hist.col = "#00AFBB",
+  density = TRUE,  # show density plots
+  ellipses = TRUE # show correlation ellipses
+)
+
+```
+
+\newpage
+# Analysis
+
+## Reproducing Previous Analysis (10 points)
+
+**Your analysis should address the following two questions. In your final submission, please remove this question prompt so that your report reads as a report.**
+
+1.  Estimate the logistic regression model that the authors present in their report -- include the variables as linear terms in the model. Evaluate, using likelihood ratio tests, the statistical significance of each explanatory variable in the model. Evaluate, using the context and data understanding that you have created in the **Data** section of this report, the practical significance of each explanatory variable in the model.
+
+2.  Dalal, Fowlkes, and Hoadley (1989) chose to remove `pressure` from the model based on their likelihood ratio tests. Critically evaluate, using your test results and understanding of the question and data, whether `pressure` should be included in the model, or instead, `pressure` should not be included in the model. Your report needs to make a determination, argue why it is most appropriate choice, and make note of how (if at all) the model results are affected by the choice of including or excluding `pressure`.
+
+## Confidence Intervals (20 points)
+
+No matter what you determined about using or dropping `pressure`, for this section begin by considering the simplified model $logit(\pi) = \beta_0 + \beta_1 Temp$, where $\pi$ is the probability of an O-ring failure. Complete the following:
+
+1.  Estimate the logistic regression model.
+2.  Determine if a quadratic term is needed in the model for the temperature in this model.
+3.  Construct two plots:
+4.  $\pi$ vs. Temp; and,
+5.  Expected number of failures vs. Temp.
+
+Specific requirements for these plots:
+
+-   Use a temperature range of 31° to 81° on the x-axis even though the minimum temperature in the data set was 53°.\
+-   Include the 95% Wald confidence interval bands for $\pi$ on the plot. Describe, in your analysis of these plots, why the bands much wider for lower temperatures than for higher temperatures?
+
+3.  The temperature was 31° at launch for the Challenger in 1986. Estimate the probability of an O-ring failure using this temperature, and compute a corresponding confidence interval. Discuss what assumptions need to be made in order to apply the inference procedures.
+
+## Bootstrap Confidence Intervals (30 points)
+
+Rather than relying on asymptotic properties, consider using a parametric bootstrap, as did Dalal, Fowlkes and Hoadley. To do this:
+
+1.  Simulate a large number of data sets (n = 23 for each) by re-sampling with replacement from the data.
+2.  Estimate a model for each dataset.
+3.  Compute the effect at a specific temperature of interest.
+
+To produce a confidence interval, the authors used the 0.05 and 0.95 observed quantiles from the simulated distribution as their 90% confidence interval limits.
+
+Using the parametric bootstrap, compute 90% confidence intervals separately at each integer temperature between 10° and 100° Fahrenheit.
+
+In this section, you should describe your process, justify such a process, and present your results in a way that is compelling for your reader.
+
+## Alternative Specification (10 points)
+
+With the same set of explanatory variables in your final model, estimate a linear regression model. Explain the model results; conduct model diagnostic; and assess the validity of the model assumptions. Would you use the linear regression model or binary logistic regression in this case? Explain why.
+
+# Conclusions (10 points)
+
+Interpret the main result of your preferred model in terms of both odds and probability of failure. Summarize this result with respect to the question(s) being asked and key takeaways from the analysis.
