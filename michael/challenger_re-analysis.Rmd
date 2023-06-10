@@ -96,6 +96,254 @@ pairs.panels(
 
 1.  Estimate the logistic regression model that the authors present in their report -- include the variables as linear terms in the model. Evaluate, using likelihood ratio tests, the statistical significance of each explanatory variable in the model. Evaluate, using the context and data understanding that you have created in the **Data** section of this report, the practical significance of each explanatory variable in the model.
 
+From the exploratory data analysis, we found negative correlation between *Temp* and 
+*O-ring* and positive correlation between *Pressure* and *O-ring*.
+We want to include both explanatory features in our first logistic regression model 
+to explore more.
+For a given launch $i$, we denote the probability for an O-ring to fail as $\pi_i$, 
+launch temperature as $t_i$ and leak test pressure as $p_i$. 
+With that, the model will be formulated as:-
+
+$$
+logit \left( \pi_i \right)  = \beta_0 + \beta_1 t_i + \beta_2 p_i
+$$
+
+```{r, model 1}
+model_1 <- glm(formula = O.ring / Number ~ Temp + Pressure, 
+               data = df,
+               family = binomial(link = logit), 
+               weights = Number)
+summary(model_1)
+cbind(Estimate = coef(model_1), confint(model_1))
+Anova(model_1, test = 'LR')
+```
+The results of the likelihood ratio test, we see that temperature appears to be 
+statistically significant predictor on the number of o-ring failures. It is also 
+showing the inverse relationship between o-ring failure and the temperature. 
+The pressure variable is not statistically significant predictor on the number 
+of o-ring failures. 
+The coefficient of $t_i$ was estimated to be 
+`r cbind(Estimate = coef(model_1), confint(model_1))[2,1]` with the 95% Wald 
+confidence interval of `r cbind(Estimate = coef(model_1), confint(model_1))[2,2]` 
+to `r cbind(Estimate = coef(model_1), confint(model_1))[2,3]`, indicating that 
+the decrease on the launch temperature would cause the increase on the odds 
+for an O-ring to fail. 
+In Anova test, involving feature variable of *Temp*, according to 
+$H_0 : \beta_1 = 0$ and $H_\alpha : \beta_1 \neq 0$. 
+The LRT statistic for *Temp* is `r Anova(model_1, test = 'LR')[1,1]` with a 
+p-value of `r Anova(model_1, test = 'LR')[1,3]`. 
+Using the Type I Error rate $alpha = 0.05$, we reject the null hypothesis and 
+accept that the feature *Temp* is important to be included in the model with
+other feature variable *Pressure* is included the model. 
+For the test of *Pressure* with $H_0 : \beta_2 = 0$ vs. $H_\alpha : \beta_2 \neq 0$, 
+The LRT statistic of *Pressure* is `r Anova(model_1, test = 'LR')[2,1]` with a 
+p-value of `r Anova(model_1, test = 'LR')[2,3]`. Using the Type I Error rate 
+$alpha = 0.05$, we fail to reject the null hypothesis. 
+Therefore, there is a lack of evidence to include the feature variable *Pressure* 
+to be included in the model. 
+
+```{r}
+test.temp <- -10
+exp(test.temp*coef(model_1)['Temp'])
+```
+With 10 deg F temperature drop increases the odds o-ring failure by approximately 
+`r abs(round(floor(exp(test.temp*coef(model_1)['Temp'])) - exp(test.temp*coef(model_1)['Temp']), 2)) * 100`%. 
+
+In our next model, we are just including temperature as our explanatory varaible.
+For a given launch $i$, we denote the probability for an O-ring to fail as $\pi_i$, 
+launch temperature as $t_i$ . 
+With that, the model will be formulated as:-
+
+$$
+logit \left( \pi_i \right)  = \beta_0 + \beta_1 t_i
+$$
+
+```{r, model 2}
+model_2 <- glm(formula = O.ring / Number ~ Temp, 
+               data = df,
+               family = binomial(link = logit), 
+               weights = Number)
+summary(model_2)
+cbind(Estimate = coef(model_2), confint(model_2))
+Anova(model_2, test = 'LR')
+```
+
+In our second model, we just used temperature as the feature to predict the
+probability of o-ring failure and it still appears to be statistically significant 
+feature in predicting the probability of o-ring failure.
+
+Dalal, Fowlkes, and Hoadley (1989) chose to remove *Pressure* from the model 
+for the weak effect of it, but we also have limited data for 50 and 100 psi. 
+And the interaction between *Temp* and *Pressure* was not taken into account by 
+the authors. Given the fact that high pressure can cause "blow holes" in the putty, 
+resulting the hot gasses to escape. If so, the effect of pressure can be 
+significant predictor when the temperature is very low. Therefore, 
+removing *Pressure* from the model could possibly cause serious information loss.
+
+In our third logistic regression model, we use temperature and it's quadratic
+term as explanatory features to predict the o-ring failure probability.
+For a given launch $i$, we denote the probability for an O-ring to fail as $\pi_i$, 
+launch temperature as $t_i$. 
+With that, the model will be formulated as:-
+
+$$
+logit \left( \pi_i \right)  = \beta_0 + \beta_1 t_i + \beta_2 t_i ^ 2
+$$
+
+```{r, model 3}
+model_3 <- glm(formula = O.ring / Number ~ Temp + I(Temp ^ 2), 
+               data = df,
+               family = binomial(link = logit), 
+               weights = Number)
+summary(model_3)
+cbind(Estimate = coef(model_3), confint(model_3))
+Anova(model_3, test = 'LR')
+```
+Then, we wanted to see if the quadratic temperature has any effect on predicting
+o-ring failure and we do not see any statistical significance of it. So we are
+not going to use this quadratic temperature feature in our model.
+
+In our fourth logistic regression model, For a given launch $i$, we denote the 
+probability for an O-ring to fail as $\pi_i$, launch temperature as $t_i$ and 
+leak test pressure as $p_i$. We also consider the interaction term between
+*Temp* and *Pressure*.
+With that, the model will be formulated as:-
+
+$$
+logit \left( \pi_i \right)  = \beta_0 + \beta_1 t_i + \beta_2 p_i + \beta_4 t_i:p_i
+$$
+
+```{r, model 4}
+model_4 <- glm(formula = O.ring / Number ~ Temp + 
+                                           Pressure + 
+                                           Temp:Pressure, 
+               data = df,
+               family = binomial(link = logit), 
+               weights = Number)
+summary(model_4)
+cbind(Estimate = coef(model_4), confint(model_4))
+Anova(model_4, test = 'LR')
+```
+```{r, predicted probability and o-ring failure with temprerature}
+temp_range <- data.frame(Temp = 31:81)
+prob_pred <- predict(model_2, temp_range, type="response", se = TRUE)
+temp_range['pi_hat'] <- prob_pred$fit
+linear_pred <- predict(model_2, temp_range, type="link", se = TRUE)
+lower <- linear_pred$fit - qnorm(1 - 0.05 / 2) * linear_pred$se.fit
+upper <- linear_pred$fit + qnorm(1 - 0.05 / 2) * linear_pred$se.fit
+temp_range['lower'] <- exp(lower)/(1 + exp(lower))
+temp_range['upper'] <- exp(upper)/(1 + exp(upper))
+
+p7 <- ggplot(temp_range, aes(x = Temp, y = pi_hat)) + 
+  geom_line() +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.2) + 
+  labs(title = "Predicted Probability of O-Ring Failure vs Temperature") +
+  theme(plot.title = element_text(size = 8), text = element_text(size = 7)) +
+  ylab("Pi") +
+  xlab("Temperature")
+
+# Expected number of failures vs Temp plot.
+temp_range['pred_failures'] <- temp_range$pi_hat * 6
+temp_range['failures_lower'] <- temp_range$lower * 6
+temp_range['failures_upper'] <- temp_range$upper * 6
+
+p8 <- ggplot(temp_range, aes(x = Temp, y = pred_failures)) + 
+  geom_line() + 
+  geom_ribbon(aes(ymin = failures_lower, ymax = failures_upper), alpha = 0.2) + 
+  labs(title = "Predicted Number of O-Ring Failures vs Temperature") +
+  theme(plot.title = element_text(size = 8), text = element_text(size = 7)) +
+  ylab("O-Ring Failures") +
+  xlab("Temperature")
+
+grid.arrange(p7, p8, ncol=2)
+```
+
+The confidence intervals gets wider in lower temperature for lack of training data 
+at low temperature, leading the model to be more uncertain at lower temperatures.
+
+When the temperature is 31° F, the estimated probability of o-ring failure is 
+`r round(temp_range[temp_range$Temp == 31,]['pi_hat'], 4)` with the confidence 
+interval between `r round(temp_range[temp_range$Temp == 31,]['lower'], 4)` and
+`r round(temp_range[temp_range$Temp == 31,]['upper'], 4)`). The estimated number 
+of o-ring failures at 31 deg F is `r round(temp_range[temp_range$Temp == 31,]['pred_failures'], 4)` 
+with the confidence interval between `r round(temp_range[temp_range$Temp == 31,]['failures_lower'], 4)`
+and `r round(temp_range[temp_range$Temp == 31,]['failures_upper'], 4)`. 
+In order to draw inference from the model, we need to assume the model is built 
+off a representative data set including records with both high and low 
+temperatures, high and low pressure levels. We should not be training the model
+on a range and use for inference on another range. Then the results will be 
+uncertain and we can not trust the model's predictions.
+
+```{r, bootstrap-confidence-intervals}
+o.ring.failure.estimator <- function(iterations, seed=42, number=6) {
+  # Setting seed to make the plot exactly reproduced
+  set.seed(seed)
+  n <- 23 # Resample size
+  estimation <- array(data = NA, dim=c(91, iterations))
+  
+  # Performing re-sampling repeatedly "b" times
+  for(i in 1:iterations) {
+    samples <- sample(x = 1:n, size = n, replace = TRUE)
+    model   <- glm(formula = O.ring / Number ~ Temp, data = df[samples,],
+                   weights = Number, family = 'binomial')
+    # Performing prediction for 10-100° Fahrenheit using each fitted model 
+    preds <- predict(object = model, newdata = data.frame(Temp = 10:100),
+                     type = "response")
+    j <- 0
+    for(p in preds) {
+      j <- j+1 # Index
+      estimation[j, i] <- p
+    }
+  }
+  # Fitting a model with the original data for prediction
+  model <- glm(formula = O.ring/Number ~ Temp, data = df,
+               weights = Number, family = 'binomial')
+  # Estimating Expected number of incidents along with 90% CI
+  incidents <- data.frame(Temperature = integer(), Incidents = double(),
+                          CI.Upper = double(), CI.Lower = double())
+  preds <- predict(object = model, newdata = data.frame(Temp = 10:100),
+                   type = "response")
+  i <- 0
+  for(p in preds) {
+    i <- i+1 # Index to locate data in the data.frame
+    # Getting the 90% CI and multiply by 6 to get estimation for a single flight
+    ci <- quantile(estimation[i,], probs = c(0.1, 0.90), names=FALSE)
+    incidents[i, 1] <- i + 9 # Temperature
+    incidents[i, 2] <- p*number
+    incidents[i, 3] <- ci[1]*number
+    incidents[i, 4] <- ci[2]*number
+  }
+
+  return(incidents)
+}
+
+# Performing predictions for 10°-100° temperature and plotting the result
+predicted.incidents <- o.ring.failure.estimator(2000)
+```
+
+```{r, plot bootstrap confidence interval}
+ggplot(predicted.incidents, aes(x=Temperature)) + 
+  geom_line(aes(y = Incidents)) +
+  geom_ribbon(aes(ymin = CI.Lower, ymax = CI.Upper), alpha = 0.2) + 
+  labs(title = "Expected Number of Incidents by Temperature") +
+  theme(plot.title = element_text(size = 10), text = element_text(size = 8)) +
+  xlab("Temperature in degree fahrenheit") +
+  ylab("Expected number of incidents") -> p9
+
+# Using grid to make the plot smaller to take up less room.
+grid.arrange(p9)
+```
+
+We are simulating the sampling(with replacement because of small data size) 
+process over iterations and performed model fitting using the sample, generated 
+in each iteration and used it for prediction and calculation of confidence
+interval for different temperature values.
+We are running the simulation 2,000 times to generate a stable distribution. 
+The confidence interval varies depending on the temperature value. At lower 
+temperature, the confidence interval tends to get wider as it moves further away 
+from the center of the data, resulting the uncertainty of the model predictions.
+
+
 2.  Dalal, Fowlkes, and Hoadley (1989) chose to remove `pressure` from the model based on their likelihood ratio tests. Critically evaluate, using your test results and understanding of the question and data, whether `pressure` should be included in the model, or instead, `pressure` should not be included in the model. Your report needs to make a determination, argue why it is most appropriate choice, and make note of how (if at all) the model results are affected by the choice of including or excluding `pressure`.
 
 ## Confidence Intervals (20 points)
@@ -132,6 +380,33 @@ In this section, you should describe your process, justify such a process, and p
 ## Alternative Specification (10 points)
 
 With the same set of explanatory variables in your final model, estimate a linear regression model. Explain the model results; conduct model diagnostic; and assess the validity of the model assumptions. Would you use the linear regression model or binary logistic regression in this case? Explain why.
+
+```{r, linear model}
+model.linear <- lm(O.ring ~ Temp, data = df)
+summary(model.linear)
+
+par(mfrow=c(2,2))
+plot(model.linear)
+```
+
+According to the linear model, the Temperature is statistically significant and 
+negatively related to the number of O-ring failures for a given flight. 
+For every 1-degree Fahrenheit increase, the number of O-ring failures decreases 
+by `r model.linear$coefficients[2]`.
+
+The residuals vs fitted plot displays non-linear relationship, which can not be 
+explained by the linera model and contributed in the residuals. 
+In the Q-Q plot, the residuals are supposed to follow a straight line showing 
+that the data is normally distributed, but it deviates from that pattern 
+with a curve, which might be the result of skewness of data. 
+The scale-location plot displays if there is an equal variance (homoscedasticity), 
+we see that in our case, the residuals are not randomly distributed, and that's 
+why the smooth red line is not horizontal. 
+The Residual vs Leverage plot shows us that if there are influential observations. 
+All the observations are within Cook's distance lines, with an outlier 
+observation data point 14 which is at the borderline. We can conclude that it 
+does not show any influential cases that can alter the slope coefficient 
+significantly if removed. 
 
 # Conclusions (10 points)
 
