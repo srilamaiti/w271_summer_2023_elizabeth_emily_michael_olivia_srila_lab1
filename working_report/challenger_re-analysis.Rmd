@@ -602,3 +602,4 @@ model for the below reasons:-
 
 Interpret the main result of your preferred model in terms of both odds and probability of failure. Summarize this result with respect to the question(s) being asked and key takeaways from the analysis.
 
+The binomial logistic regression model relays the answer in a clear proportion value of O-ring failure. Utilizing the binomial logistic regression model with just the explanatory variables of temperature, the probability of failure at 31 °F is estimated to be 0.818. Temperature is shown to be statistically significant in predicting O-ring failure. Our binomial logistic regression model shows a large confidence interval (.160 to .991), and the parametric bootstrap method also shows a large confidence interval of (.108 to .993). This is due to the lack of data points at lower temperatures. 
